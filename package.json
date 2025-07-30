@@ -1,0 +1,14 @@
+{
+  "name": "study-task",
+  "version": "1.0.0",
+  "description": "Hiring task project",
+  "main": "study-task.js",
+  "scripts": {
+    "start": "node study-task.js",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "eslint": "9.13.0",
+    "prettier": "3.3.3"
+  }
+}
