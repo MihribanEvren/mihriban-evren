@@ -1,34 +1,59 @@
 const config = {
   API_URL:
     "https://gist.githubusercontent.com/sevindi/8bcbde9f02c1d4abe112809c974e1f49/raw/9bf93b58df623a9b16f1db721cd0a7a539296cf0/products.json",
-  LOCAL_STORAGE_KEY: "carousel-favorites",
+  LOCAL_STORAGE_KEY: "carousel",
 };
 
-const getLocalStorage = (key) => {
-  return JSON.parse(localStorage.getItem(key));
+const storageOperations = {
+  get: (key) => {
+    try {
+      return JSON.parse(localStorage.getItem(key));
+    } catch (error) {
+      console.error(error);
+      return null;
+    }
+  },
+  save: (key, value) => {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (error) {
+      console.error(error);
+    }
+  },
 };
 
-const addLocalStorage = (key, value) => {
-  localStorage.setItem(key, JSON.stringify(value));
-};
-
-const getFavorites = () => {
-  return getLocalStorage(config.LOCAL_STORAGE_KEY);
-};
-
-const addFavorites = (favorites) => {
-  addLocalStorage(config.LOCAL_STORAGE_KEY, favorites);
+const favoritesOperations = {
+  get: () => {
+    try {
+      return (
+        storageOperations.get(`${config.LOCAL_STORAGE_KEY}:favorites`) || []
+      );
+    } catch (error) {
+      console.error(error);
+      return [];
+    }
+  },
+  save: (favorites) => {
+    try {
+      storageOperations.save(
+        `${config.LOCAL_STORAGE_KEY}:favorites`,
+        favorites
+      );
+    } catch (error) {
+      console.error(error);
+    }
+  },
 };
 
 const productOperations = {
   fetchProducts: async () => {
-    if (addFavorites()) {
-      return addFavorites();
-    }
     try {
+      if (storageOperations.get(`${config.LOCAL_STORAGE_KEY}:products`)) {
+        return storageOperations.get(`${config.LOCAL_STORAGE_KEY}:products`);
+      }
       const response = await fetch(config.API_URL);
       const products = await response.json();
-      addFavorites(products);
+      storageOperations.save(`${config.LOCAL_STORAGE_KEY}:products`, products);
       return products;
     } catch (error) {
       console.error(error);
@@ -55,6 +80,7 @@ const productOperations = {
           product.original_price
         )
       : 0;
+    const isFavorite = favoritesOperations.get().includes(product.id);
     return `
     <div class="owl-item ng-tns-c131-3 ng-trigger ng-trigger-autoHeight active ng-star-inserted" style="width: 272.5px; margin-right: 20px;">
   <div class="ins-web-smart-recommender-box-item ng-star-inserted">
@@ -67,7 +93,6 @@ const productOperations = {
                 <div class="product-item__multiple-badge" style="z-index: 1;">
                   <span class="d-flex flex-column">
                     <img alt="Popular" loading="lazy" src="assets/images/cok-satan.png" srcset="assets/images/cok-satan@2x.png 2x, assets/images/cok-satan@3x.png 3x" class="ng-star-inserted">
-                    <img alt="Popular" loading="lazy" src="assets/images/yildiz-urun.png" srcset="assets/images/yildiz-urun@2x.png 2x, assets/images/yildiz-urun@3x.png 3x" class="ng-star-inserted">
                   </span>
                 </div>
                 <span class="d-flex flex-column align-items-start justify-content-end position-absolute bottom-0">
@@ -78,16 +103,7 @@ const productOperations = {
                     data-src="${product.img}"
                     src="${product.img}">
                 </cx-media>
-                <div class="d-flex ml-4">
-                  <div class="product__video-badge ng-star-inserted">
-                    <img loading="lazy" src="assets/svg/play-badge.svg" alt="" class="mr-1">
-                    <span>VİDEO</span>
-                  </div>
-                  <div class="product__ar-badge ng-star-inserted">
-                    <img loading="lazy" src="assets/svg/ar-icon-white.svg" alt="" class="mr-1">
-                    <span>AR</span>
-                  </div>
-                </div>
+                
               </figure>
               <div class="product-item-content ng-star-inserted">
                 <eb-generic-link class="product-item-anchor">
@@ -124,16 +140,20 @@ const productOperations = {
                 `
                   }
                 </div>
+                <div class="product-list-promo ng-star-inserted"></div>
               </div>
             </a>
           </eb-generic-link>
           <eb-add-to-wish-list>
-            <a href="/login" class="ng-star-inserted">
-              <div class="heart">
-                <img id="default-favorite" src="assets/svg/default-favorite.svg" alt="heart" class="heart-icon">
-                <img src="assets/svg/default-hover-favorite.svg" alt="heart" class="heart-icon hovered">
-              </div>
-            </a>
+            <div class="heart ng-star-inserted" data-product-id="${product.id}">
+              ${
+                isFavorite
+                  ? `<img src="assets/svg/added-favorite.svg" alt="heart fill" class="heart-icon">
+                     <img src="assets/svg/added-favorite-hover.svg" alt="heart fill" class="heart-icon hovered">`
+                  : `<img id="default-favorite" src="assets/svg/default-favorite.svg" alt="heart" class="heart-icon">
+                     <img src="assets/svg/default-hover-favorite.svg" alt="heart" class="heart-icon hovered">`
+              }
+            </div>
           </eb-add-to-wish-list>
           <div class="product-item-content">
             <div class="product-item__price">
@@ -157,14 +177,14 @@ const productOperations = {
   },
 
   handleFavorite: (productId) => {
-    const favorites = getFavorites();
+    const favorites = favoritesOperations.get();
     const isInFavorites = favorites.includes(productId);
 
     const newFavorites = isInFavorites
       ? favorites.filter((id) => id !== productId)
       : [...favorites, productId];
 
-    addFavorites(newFavorites);
+    favoritesOperations.save(newFavorites);
   },
 
   calculateDiscount: (price, original_price) => {
@@ -180,13 +200,18 @@ const productOperations = {
 
   const init = async () => {
     const products = await productOperations.fetchProducts();
-    buildHtml(products);
+    buildHTML(products);
+    buildCSS();
+    setFavoritesEvents();
   };
 
-  init();
+  setTimeout(() => {
+    init();
+  }, 1000);
 
   const mainCarousel = (products) => {
-    const carousel = `<eb-product-carousel>
+    const carousel = `
+    <eb-product-carousel class="recommended-products">
   <div class="banner">
     <div class="container">
       <eb-carousel-header class="ng-star-inserted">
@@ -197,8 +222,8 @@ const productOperations = {
       <div
         ebvisibilityobserver=""
         class="banner__wrapper ins-preview-wrapper-10167 ng-star-inserted"
-      ></div>
-      <div data-recomended-items="[BYP-SH860G001,BAE-70089001,BAE-20030,MT-BB100,XYZ-250DR1B,BAMM-1409,VAR-BIB-698-93-94,24GHLBUMND007001,BAE-70090001,BRM-7556,BYP-9897,CH-C01E,CRCL116,BYT-1511,PAV-SCY90001]">
+        >
+        <div data-recomended-items="[BYT-S03,MOL-5064001,BAE-70089001,BAE-20030,BYP-SH860G001,BYT-1511,XYZ-M250DS,JOI-S1706DA001,BYP-MULT002,BYT-ST-004,24GHLBUBDY002003,HIP-4201,SIV-098808,BYP-244004,BYT-8625]">
         <owl-carousel-o
           class="product-list__best-products"
           _nghost-serverapp-c130=""
@@ -220,34 +245,118 @@ const productOperations = {
                     class="owl-stage ng-tns-c131-3"
                     style="width: 4388px; transform: translate3d(0px, 0px, 0px); transition: all;"
                   >
-                  BURAYA CAROUSEL ITEMLARI GELECEK
+                  ${products.map((product) => productOperations.getProductCard(product)).join("")}
                   </div>
                 </div>
               </owl-stage>
             </div>
-            <div
-              _ngcontent-serverapp-c130=""
-              class="owl-nav disabled ng-star-inserted"
-            >
-              <div _ngcontent-serverapp-c130="" class="owl-prev">
-                <i class="icon icon-prev"></i>
-              </div>
-              <div _ngcontent-serverapp-c130="" class="owl-next">
-                <i class="icon icon-next"></i>
-              </div>
-            </div>
-            <div
-              _ngcontent-serverapp-c130=""
-              class="owl-dots disabled ng-star-inserted"
-            ></div>
           </div>
         </owl-carousel-o>
         <button aria-label="back" class="swiper-prev"></button>
         <button aria-label="next" class="swiper-next"></button>
       </div>
+      </div>
     </div>
   </div>
 </eb-product-carousel>`;
     return carousel;
+  };
+
+  const renderCarousel = (html) => {
+    const pageLayout = document.querySelector(
+      "cx-page-layout.EbebekHomepageTemplate"
+    );
+
+    let section1A = pageLayout.querySelector(
+      'cx-page-slot[position="Section1A"]'
+    );
+    if (!section1A) {
+      section1A = document.createElement("cx-page-slot");
+      section1A.setAttribute("position", "Section1A");
+      section1A.setAttribute("class", "Section1A has-components");
+    }
+
+    section1A.innerHTML = html;
+
+    const section2A = document.querySelector(
+      'cx-page-slot[position="Section2A"]'
+    );
+
+    if (section2A && !section1A.parentNode) {
+      console.debug("Section2A found, inserting Section1A before it");
+      section2A.parentNode.insertBefore(section1A, section2A);
+    } else if (!section1A.parentNode) {
+      console.debug("Section2A not found, appending Section1A to page layout");
+      pageLayout.appendChild(section1A);
+    }
+  };
+
+  const buildHTML = (products) => {
+    const html = mainCarousel(products);
+    renderCarousel(html);
+  };
+
+  const buildCSS = () => {
+    const css = `
+      .recommended-products {
+        margin-top: 20px;
+      }   
+
+      .container {
+        position: relative;
+      }
+
+      .swiper-prev,
+      .swiper-next {
+      background-color: #fff;
+        border: 1px solid #f28e00;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        position: absolute;
+        top: auto;
+        cursor: pointer;
+        pointer-events: auto;
+        display: block !important;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      }
+
+
+      .swiper-prev:hover,
+      .swiper-next:hover {
+        background-color: #f5f5f5;
+      }
+    `;
+    const styleElement = document.createElement("style");
+    styleElement.textContent = css;
+    document.head.appendChild(styleElement);
+  };
+
+  const setFavoritesEvents = () => {
+    document.querySelectorAll(".heart").forEach((heart) => {
+      heart.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const productId = parseInt(heart.dataset.productId);
+        let favorites = favoritesOperations.get();
+        const isFavorite = favorites.includes(productId);
+
+        if (isFavorite) {
+          favorites = favorites.filter((id) => id !== productId);
+          heart.innerHTML = `
+            <img id="default-favorite" src="assets/svg/default-favorite.svg" alt="heart" class="heart-icon">
+            <img src="assets/svg/default-hover-favorite.svg" alt="heart" class="heart-icon hovered">
+          `;
+        } else {
+          favorites.push(productId);
+          heart.innerHTML = `
+            <img src="assets/svg/added-favorite.svg" alt="heart fill" class="heart-icon">
+            <img src="assets/svg/added-favorite-hover.svg" alt="heart fill" class="heart-icon hovered">
+          `;
+        }
+        favoritesOperations.save(favorites);
+      });
+    });
   };
 })();
