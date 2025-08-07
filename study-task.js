@@ -1,10 +1,28 @@
+/**
+ * @fileoverview
+ * This file, builds a product carousel component.
+ * It fetches product data, caches it in localStorage, manages user favorites.
+ */
+
+/**
+ * @property {string} API_URL - the url to fetch product data.
+ * @property {string} LOCAL_STORAGE_KEY - the key used to store carousel data.
+ */
 const config = {
   API_URL:
     "https://gist.githubusercontent.com/sevindi/8bcbde9f02c1d4abe112809c974e1f49/raw/9bf93b58df623a9b16f1db721cd0a7a539296cf0/products.json",
   LOCAL_STORAGE_KEY: "carousel",
 };
 
+/**
+ * @description provider for localStorage operations.
+ */
 const storageOperations = {
+  /**
+   * @description gets data from localStorage.
+   * @param {string} key - the key to get data.
+   * @returns {*} parsed value from localStorage or null.
+   */
   get: (key) => {
     try {
       return JSON.parse(localStorage.getItem(key));
@@ -13,6 +31,12 @@ const storageOperations = {
       return null;
     }
   },
+
+  /**
+   * @description saves data to localStorage.
+   * @param {string} key - the key to save data.
+   * @param {Object} value - the data to save.
+   */
   save: (key, value) => {
     try {
       localStorage.setItem(key, JSON.stringify(value));
@@ -22,7 +46,14 @@ const storageOperations = {
   },
 };
 
+/**
+ * @description provider for favorite operations.
+ */
 const favoritesOperations = {
+  /**
+   * @description gets list of product ids marked as favorites.
+   * @returns {number[]} the list of product ids marked as favorites.
+   */
   get: () => {
     try {
       return (
@@ -33,6 +64,11 @@ const favoritesOperations = {
       return [];
     }
   },
+
+  /**
+   * @description saves list of product ids as favorites.
+   * @param {number[]} favorites - the list of product ids to save as favorites.
+   */
   save: (favorites) => {
     try {
       storageOperations.save(
@@ -45,7 +81,14 @@ const favoritesOperations = {
   },
 };
 
+/**
+ * @description provider for product operations.
+ */
 const productOperations = {
+  /**
+   * @description gets products from the API and caches them in localStorage.
+   * @returns {Promise<Object[]>} list of products.
+   */
   fetchProducts: async () => {
     try {
       if (storageOperations.get(`${config.LOCAL_STORAGE_KEY}:products`)) {
@@ -72,6 +115,11 @@ const productOperations = {
 };
 */
 
+  /**
+   * @description builds an HTML card for a product.
+   * @param {Object} product - product data.
+   * @returns {string} HTML markup for the product card.
+   */
   getProductCard: (product) => {
     const hasDiscount = product.original_price !== product.price;
     const discountRate = hasDiscount
@@ -82,7 +130,7 @@ const productOperations = {
       : 0;
     const isFavorite = favoritesOperations.get().includes(product.id);
     return `
-    <div class="owl-item ng-tns-c131-3 ng-trigger ng-trigger-autoHeight active ng-star-inserted" style="width: 272.5px; margin-right: 20px;">
+    <div class="owl-item ng-tns-c131-3 ng-trigger ng-trigger-autoHeight active ng-star-inserted responsive-carousel-item" style="margin-right: 20px;">
   <div class="ins-web-smart-recommender-box-item ng-star-inserted">
     <div event-collection="true" class="ins-product-box ins-element-link ins-add-to-cart-wrapper ins-sr-api" ins-product-id="${product.id}">
       <eb-carousel-product-item>
@@ -101,7 +149,8 @@ const productOperations = {
                 <cx-media alt="Popular" format="product" id="lnkProduct${product.id}" class="is-initialized">
                   <img class="ng-star-inserted ls-is-cached lazyloaded" alt="${product.name}"
                     data-src="${product.img}"
-                    src="${product.img}">
+                    src="${product.img}"
+                    draggable="false">
                 </cx-media>
                 
               </figure>
@@ -176,6 +225,10 @@ const productOperations = {
 `;
   },
 
+  /**
+   * @description toggles the favorite status of a product.
+   * @param {number} productId - product id to change favorite status.
+   */
   handleFavorite: (productId) => {
     const favorites = favoritesOperations.get();
     const isInFavorites = favorites.includes(productId);
@@ -187,21 +240,34 @@ const productOperations = {
     favoritesOperations.save(newFavorites);
   },
 
+  /**
+   * @description calculates the discount percentage between original and sale price.
+   * @param {number} price - sale price.
+   * @param {number} original_price - original price.
+   * @returns {number} discount percentage.
+   */
   calculateDiscount: (price, original_price) => {
     return Math.round(((original_price - price) / original_price) * 100);
   },
 };
 
+/**
+ * @description initializes and renders a product carousel.
+ */
 (() => {
   if (window.location.pathname !== "/") {
     console.log("Wrong Page");
     return;
   }
 
+  /**
+   * @description initializes the product carousel by fetching data and rendering UI components.
+   */
   const init = async () => {
     const products = await productOperations.fetchProducts();
     buildHTML(products);
     buildCSS();
+    initCarouselSlider();
     setFavoritesEvents();
   };
 
@@ -209,6 +275,11 @@ const productOperations = {
     init();
   }, 1000);
 
+  /**
+   * @description builds the HTML markup for the product carousel.
+   * @param {Object[]} products - the list of product data.
+   * @returns {string} HTML markup for the product carousel.
+   */
   const mainCarousel = (products) => {
     const carousel = `
     <eb-product-carousel class="recommended-products">
@@ -262,6 +333,10 @@ const productOperations = {
     return carousel;
   };
 
+  /**
+   * @description renders the product carousel in the page layout.
+   * @param {string} html - the HTML content for the product carousel.
+   */
   const renderCarousel = (html) => {
     const pageLayout = document.querySelector(
       "cx-page-layout.EbebekHomepageTemplate"
@@ -291,11 +366,18 @@ const productOperations = {
     }
   };
 
+  /**
+   * @description builds the HTML markup for the product carousel.
+   * @param {Object[]} products - the list of product data.
+   */
   const buildHTML = (products) => {
     const html = mainCarousel(products);
     renderCarousel(html);
   };
 
+  /**
+   * @description builds the CSS for the product carousel.
+   */
   const buildCSS = () => {
     const css = `
       .recommended-products {
@@ -304,6 +386,46 @@ const productOperations = {
 
       .container {
         position: relative;
+      }
+
+      .responsive-carousel-item {
+        width: 225px;
+      }
+
+      @media (min-width: 580px) {
+        .responsive-carousel-item {
+          width: 225px;
+        }
+      }
+
+      @media (min-width: 765px) {
+        .responsive-carousel-item {
+          width: 315px;
+        }
+      }
+
+      @media (min-width: 990px) {
+        .responsive-carousel-item {
+          width: 283.333px;
+        }
+      }
+
+      @media (min-width: 1280px) {
+        .responsive-carousel-item {
+          width: 262.5px;
+        }
+      }
+
+      @media (min-width: 1480px) {
+        .responsive-carousel-item {
+          width: 229.2px;
+        }
+      }
+
+      @media (min-width: 1580px) {
+        .responsive-carousel-item {
+          width: 234px;
+        }
       }
 
       .swiper-prev,
@@ -326,12 +448,119 @@ const productOperations = {
       .swiper-next:hover {
         background-color: #f5f5f5;
       }
+
+      .owl-stage {
+        transition: transform 0.3s ease;
+        cursor: default;
+      }
     `;
     const styleElement = document.createElement("style");
     styleElement.textContent = css;
     document.head.appendChild(styleElement);
   };
 
+  /**
+   * @description initializes the carousel slider.
+   */
+  const initCarouselSlider = () => {
+    const carouselContainer = document.querySelector(".owl-carousel");
+    if (!carouselContainer) {
+      return;
+    }
+
+    const carousel = carouselContainer.querySelector(".owl-stage");
+    const carouselItems = carouselContainer.querySelectorAll(".owl-item");
+    const prevButton = document.querySelector(".swiper-prev");
+    const nextButton = document.querySelector(".swiper-next");
+
+    const margin = 20;
+    const itemWidth = carouselItems[0].offsetWidth + margin;
+    const carouselContainerWidth = carouselContainer.offsetWidth;
+    const visibleItemCount = Math.floor(carouselContainerWidth / itemWidth);
+    const maxScroll = Math.max(0, carouselItems.length - visibleItemCount);
+
+    let currentPosition = 0;
+
+    // SWIPE
+    const updateButtons = () => {
+      prevButton.disabled = currentPosition <= 0;
+      nextButton.disabled = currentPosition >= maxScroll;
+    };
+
+    const moveToPosition = (position) => {
+      currentPosition = Math.max(0, Math.min(position, maxScroll));
+      carousel.style.transition = "transform 0.3s ease";
+      carousel.style.transform = `translateX(${-currentPosition * itemWidth}px)`;
+      updateButtons();
+    };
+
+    const goToNext = () => {
+      if (currentPosition < maxScroll) {
+        moveToPosition(currentPosition + 1);
+      }
+    };
+
+    const goToPrevious = () => {
+      if (currentPosition > 0) {
+        moveToPosition(currentPosition - 1);
+      }
+    };
+
+    prevButton.addEventListener("click", goToPrevious);
+    nextButton.addEventListener("click", goToNext);
+
+    updateButtons();
+
+    // DRAG
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragCurrentX = 0;
+
+    const mousedown = (e) => {
+      e.preventDefault();
+      isDragging = true;
+      dragStartX = e.pageX;
+      carousel.style.transition = "none";
+      carousel.style.cursor = "grabbing";
+    };
+
+    const mousemove = (e) => {
+      if (!isDragging) return;
+
+      dragCurrentX = e.pageX;
+      const dragOffset = dragCurrentX - dragStartX;
+      const currentTransform = -(currentPosition * itemWidth);
+
+      carousel.style.transform = `translateX(${currentTransform + dragOffset}px)`;
+    };
+
+    const mouseup = () => {
+      if (!isDragging) return;
+
+      isDragging = false;
+      carousel.style.cursor = "grab";
+
+      const dragDistance = dragCurrentX - dragStartX;
+      const threshold = 50;
+
+      if (dragDistance < -threshold && currentPosition < maxScroll) {
+        moveToPosition(currentPosition + 1);
+      } else if (dragDistance > threshold && currentPosition > 0) {
+        moveToPosition(currentPosition - 1);
+      } else {
+        moveToPosition(currentPosition);
+      }
+    };
+
+    carousel.addEventListener("mousedown", mousedown);
+    carousel.addEventListener("mousemove", mousemove);
+    carousel.addEventListener("mouseup", mouseup);
+    carousel.addEventListener("mouseleave", mouseup);
+  };
+
+  /**
+   * @description sets up click event listeners for favorite heart icons.
+   */
   const setFavoritesEvents = () => {
     document.querySelectorAll(".heart").forEach((heart) => {
       heart.addEventListener("click", (e) => {
